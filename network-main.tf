@@ -39,21 +39,24 @@ resource "azurerm_network_security_group" "securityNetwork" {
   }
 }
 
+############################################################
+#CREATING PUBLIC SUBNET PLUS VM
+
 #creating the subnet in the network
-resource "azurerm_subnet" "subnet" {
-  name = "front"
+resource "azurerm_subnet" "subnetPublic" {
+  name = "netPublic"
   resource_group_name = azurerm_resource_group.resourceGroup.name
   virtual_network_name = azurerm_virtual_network.virtualNetwork.name
   address_prefixes = [ "10.0.2.0/24" ]
   #azurerm_public_ip = true
 }
 #creating a security group for the subnet
-resource "azurerm_subnet_network_security_group_association" "securitySubnet" {
-  subnet_id                 = azurerm_subnet.subnet.id
+resource "azurerm_subnet_network_security_group_association" "securitySubnetPublic" {
+  subnet_id                 = azurerm_subnet.subnetPublic.id
   network_security_group_id = azurerm_network_security_group.securityNetwork.id
 }
 
-#
+#Creating a public ip
 resource "azurerm_public_ip" "publicIp" {
   name                    = "ipPublic"
   location                = azurerm_resource_group.resourceGroup.location
@@ -63,25 +66,120 @@ resource "azurerm_public_ip" "publicIp" {
 
 }
 
-resource "azurerm_network_interface" "networkInterface" {
+#Creating an interface for the VM
+resource "azurerm_network_interface" "networkInterfacePublic" {
   name                = "networkInterface"
   location            = azurerm_resource_group.resourceGroup.location
   resource_group_name = azurerm_resource_group.resourceGroup.name
 
   ip_configuration {
     name                          = "internal"
-    subnet_id                     = azurerm_subnet.subnet.id
+    subnet_id                     = azurerm_subnet.subnetPublic.id
     private_ip_address_allocation = "Static"
     private_ip_address            = "10.0.2.5"
     public_ip_address_id          = azurerm_public_ip.publicIp.id
   }
 }
 
-resource "azurerm_virtual_machine" "virtualMachine" {
+#Creating the VM
+resource "azurerm_virtual_machine" "virtualMachinePublic" {
   name                  = "example-vm"
   location              = azurerm_resource_group.resourceGroup.location
   resource_group_name   = azurerm_resource_group.resourceGroup.name
-  network_interface_ids = [azurerm_network_interface.networkInterface.id]
+  network_interface_ids = [azurerm_network_interface.networkInterfacePublic.id]
+  vm_size               = "Standard_DS1_v2"
+
+  storage_image_reference {
+    publisher = "Canonical"
+    offer     = "UbuntuServer"
+    sku       = "16.04-LTS"
+    version   = "latest"
+  }
+  storage_os_disk {
+    name              = "myosdisk1"
+    caching           = "ReadWrite"
+    create_option     = "FromImage"
+    managed_disk_type = "Standard_LRS"
+  }
+  os_profile {
+    computer_name  = "hostname"
+    admin_username = "admin"
+    admin_password = "1234"
+  }
+  os_profile_linux_config {
+    disable_password_authentication = false
+  }
+}
+
+
+############################################################
+############################################################
+#CREATING PRIVATE SUBNET PLUS VM
+
+#creating the subnet in the network
+resource "azurerm_subnet" "subnetPrivate" {
+  name = "netPrivate"
+  resource_group_name = azurerm_resource_group.resourceGroup.name
+  virtual_network_name = azurerm_virtual_network.virtualNetwork.name
+  address_prefixes = [ "10.0.2.0/24" ]
+  #azurerm_public_ip = true
+}
+
+#create securiry group private
+resource "azurerm_network_security_group" "securityPrivate" {
+  name                = "securityPrivate"
+  location            = azurerm_resource_group.resourceGroup.location
+  resource_group_name = azurerm_resource_group.resourceGroup.name
+
+  security_rule {
+    name                       = "private"
+    priority                   = 101
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
+  }
+}
+#creating a security group for the subnet
+resource "azurerm_subnet_network_security_group_association" "securitySubnetPrivate" {
+  subnet_id                 = azurerm_subnet.subnetPrivate.id
+  network_security_group_id = azurerm_network_security_group.securityPrivate.id
+}
+
+#Creating a public ip
+resource "azurerm_public_ip" "privateIp" {
+  name                    = "ipPrivate"
+  location                = azurerm_resource_group.resourceGroup.location
+  resource_group_name     = azurerm_resource_group.resourceGroup.name
+  allocation_method       = "Dynamic"
+  idle_timeout_in_minutes = 30
+
+}
+
+#Creating an interface for the VM
+resource "azurerm_network_interface" "networkInterfacePrivate" {
+  name                = "networkInterfacePrivate"
+  location            = azurerm_resource_group.resourceGroup.location
+  resource_group_name = azurerm_resource_group.resourceGroup.name
+
+  ip_configuration {
+    name                          = "internal"
+    subnet_id                     = azurerm_subnet.subnetPrivate.id
+    private_ip_address_allocation = "Static"
+    private_ip_address            = "10.0.2.6"
+    public_ip_address_id          = azurerm_public_ip.privateIp.id
+  }
+}
+
+#Creating the VM
+resource "azurerm_virtual_machine" "virtualMachinePrivate" {
+  name                  = "private-vm"
+  location              = azurerm_resource_group.resourceGroup.location
+  resource_group_name   = azurerm_resource_group.resourceGroup.name
+  network_interface_ids = [azurerm_network_interface.networkInterfacePrivate.id]
   vm_size               = "Standard_DS1_v2"
 
   storage_image_reference {
