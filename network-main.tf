@@ -75,8 +75,7 @@ resource "azurerm_network_interface" "networkInterfacePublic" {
   ip_configuration {
     name                          = "internal"
     subnet_id                     = azurerm_subnet.subnetPublic.id
-    private_ip_address_allocation = "Static"
-    private_ip_address            = "10.0.2.5"
+    private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.publicIp.id
   }
 }
@@ -175,6 +174,7 @@ resource "azurerm_public_ip" "privateIp" {
 
 }
 
+
 #Creating an interface for the VM
 resource "azurerm_network_interface" "networkInterfacePrivate" {
   name                = "networkInterfacePrivate"
@@ -184,10 +184,14 @@ resource "azurerm_network_interface" "networkInterfacePrivate" {
   ip_configuration {
     name                          = "internal"
     subnet_id                     = azurerm_subnet.subnetPrivate.id
-    private_ip_address_allocation = "Static"
-    private_ip_address            = "10.0.2.6"
+    private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.privateIp.id
   }
+}
+
+#taking the script with terraform
+data "template_file" "ubuntu_init"{
+  template = file("userdata_ansible.ps1")
 }
 
 #Creating the VM
@@ -210,10 +214,14 @@ resource "azurerm_virtual_machine" "virtualMachinePrivate" {
     create_option     = "FromImage"
     managed_disk_type = "Standard_LRS"
   }
+
+  #creating the script in the VM with custom data
+ 
   os_profile {
     computer_name  = "hostname"
     admin_username = "admin"
     admin_password = "1234"
+    custom_data = base64encode(data.template_file.ubuntu_init.rendered)
   }
   os_profile_linux_config {
     disable_password_authentication = false
