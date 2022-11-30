@@ -111,6 +111,22 @@ resource "azurerm_virtual_machine" "virtualMachinePublic" {
   }
 }
 
+#creating a extension for the VM to execute commands
+resource "azurerm_virtual_machine_extension" "vmpExtention" {
+  name                 = "hostname"
+  virtual_machine_id   = azurerm_virtual_machine.virtualMachinePublic.id
+  publisher            = "Microsoft.Azure.Extensions"
+  type                 = "CustomScript"
+  type_handler_version = "2.0"
+
+  settings = <<SETTINGS
+ {
+  "commandToExecute": "hostname && uptime"
+ }
+SETTINGS
+
+}
+
 
 ############################################################
 ############################################################
