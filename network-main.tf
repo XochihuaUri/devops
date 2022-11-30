@@ -27,7 +27,7 @@ resource "azurerm_network_security_group" "securityNetwork" {
   resource_group_name = azurerm_resource_group.resourceGroup.name
 
   security_rule {
-    name                       = "test"
+    name                       = "public"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
@@ -121,7 +121,7 @@ resource "azurerm_subnet" "subnetPrivate" {
   name = "netPrivate"
   resource_group_name = azurerm_resource_group.resourceGroup.name
   virtual_network_name = azurerm_virtual_network.virtualNetwork.name
-  address_prefixes = [ "10.0.2.0/24" ]
+  address_prefixes = [ "10.0.3.0/24" ]
   #azurerm_public_ip = true
 }
 
